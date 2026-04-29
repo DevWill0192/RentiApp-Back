@@ -12,7 +12,8 @@ import {
   validateTenantDocument,
   updateApplicationStatus,
   deleteProperty,
-  getPropertyById
+  getPropertyById,
+  updateProperty
 } from './property.controller.js';
 import multer from 'multer';
 import { authMiddleware } from '../../middlewares/auth.middleware.js';
@@ -35,7 +36,7 @@ router.get('/', getProperties); // Listar con prioridad y bump
 // Gestión de Anuncios
 router.post('/', authMiddleware, uploadcreate.array('photos', 10), createProperty);
 router.delete('/:id', authMiddleware, deleteProperty);
-router.get('/:id', authMiddleware, getPropertyById);
+router.patch('/:id/edit', authMiddleware, onlyArrendador, uploadcreate.array('photos', 10), updateProperty);
 
 
 router.put('/:id', authMiddleware, upload.single('documento'), applyProperties);
@@ -51,6 +52,9 @@ router.patch('/reject/:interestId', authMiddleware, onlyArrendador, rejectApplic
 // --- RUTAS EXCLUSIVAS PARA ARRENDATARIOS (INQUILINOS) ---
 // Ver mis propias aplicaciones enviadas
 router.get('/my-applications', authMiddleware, getMyApplications);
+
+// Debe ir después de las rutas GET estáticas para evitar conflictos de matching
+router.get('/:id', authMiddleware, getPropertyById);
 
 // Enviar documento y validar con IA
 router.post(

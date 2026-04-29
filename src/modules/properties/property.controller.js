@@ -54,6 +54,86 @@ export const createProperty = async (req, res) => {
   }
 };
 
+export const updateProperty = async (req, res) => {
+  const { id } = req.params;
+
+  if (!id || String(id).trim().length === 0) {
+    return res.status(400).json({ message: 'ID de propiedad inválido' });
+  }
+
+  try {
+    const {
+      title,
+      price,
+      phone,
+      address,
+      featured,
+      bed,
+      bathtub,
+      square,
+      description,
+      rating,
+      existingPhotos,
+    } = req.body;
+
+    let parsedExistingPhotos = [];
+    if (Array.isArray(existingPhotos)) {
+      parsedExistingPhotos = existingPhotos;
+    } else if (typeof existingPhotos === 'string' && existingPhotos.trim()) {
+      try {
+        const maybeArray = JSON.parse(existingPhotos);
+        parsedExistingPhotos = Array.isArray(maybeArray) ? maybeArray : [];
+      } catch {
+        parsedExistingPhotos = [];
+      }
+    }
+
+    const newPhotos = req.files ? req.files.map(file => `/uploads/${file.filename}`) : [];
+    const finalPhotos = [...parsedExistingPhotos, ...newPhotos];
+
+    const result = await pool.query(
+      `UPDATE properties
+       SET title = $1,
+           price = $2,
+           rating = $3,
+           phone = $4,
+           address = $5,
+           featured = $6,
+           bed = $7,
+           bathtub = $8,
+       square = $9,
+       description = $10,
+       photos = $11
+       WHERE id = $12 AND owner_id = $13
+       RETURNING *`,
+      [
+        title,
+        Number(price),
+        Number(rating || 4.0),
+        phone,
+        address,
+        featured === true || featured === 'true',
+        Number(bed),
+        Number(bathtub),
+        Number(square),
+        description,
+        JSON.stringify(finalPhotos),
+        id,
+        req.user.id,
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Propiedad no encontrada o sin permisos' });
+    }
+
+    res.json({ message: 'Propiedad actualizada', property: result.rows[0] });
+  } catch (error) {
+    console.error('Error al actualizar propiedad:', error);
+    res.status(500).json({ message: 'Error al actualizar la propiedad', error: error.message });
+  }
+};
+
 
 export const deleteProperty = async (req, res) => {
   const { id } = req.params;
@@ -142,7 +222,7 @@ export const getProperties = async (req, res) => {
 export const getPropertyById = async (req, res) => {
   const { id } = req.params;
 
-  if (!id || isNaN(id)) {
+  if (!id || String(id).trim().length === 0) {
     return res.status(400).json({ error: "ID de propiedad inválido" });
   }
 
